@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Firebase</title>
+  <meta name="description" content="Ứng dụng nhắn tin realtime bằng Firebase Realtime Database">
+  <style>
+    :root{--primary:#2563eb;--primary2:#1d4ed8;--bg:#f3f6fb;--card:#fff;--text:#172033;--muted:#718096;--line:#e5eaf2;--danger:#dc2626;--success:#16a34a}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+    button,input{font:inherit} button{cursor:pointer}.hidden{display:none!important}
+    .auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
+    .auth-card{width:min(440px,100%);background:var(--card);border-radius:22px;padding:30px;box-shadow:0 18px 60px #17203318}
+    .brand{text-align:center;margin-bottom:24px}.brand .logo{width:58px;height:58px;border-radius:18px;background:linear-gradient(135deg,var(--primary),#60a5fa);display:grid;place-items:center;color:white;font-size:28px;margin:0 auto 12px}
+    h1,h2,h3,p{margin-top:0}.brand h1{margin-bottom:6px}.brand p{color:var(--muted)}
+    .tabs{display:flex;background:#eef2f7;padding:4px;border-radius:12px;margin-bottom:20px}.tabs button{flex:1;border:0;background:transparent;padding:10px;border-radius:9px;color:var(--muted)}.tabs button.active{background:#fff;color:var(--primary);box-shadow:0 2px 8px #00000010;font-weight:700}
+    label{display:block;font-size:13px;font-weight:700;margin:14px 0 6px}.field{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:11px;outline:0;background:#fff}.field:focus{border-color:#93c5fd;box-shadow:0 0 0 3px #2563eb12}
+    .btn{border:0;border-radius:11px;padding:12px 16px;font-weight:700}.btn-primary{background:var(--primary);color:#fff;width:100%;margin-top:18px}.btn-primary:hover{background:var(--primary2)}
+    .msg{margin-top:12px;padding:10px 12px;border-radius:10px;font-size:13px}.msg.error{background:#fef2f2;color:#991b1b}.msg.ok{background:#f0fdf4;color:#166534}
+    .app{height:100vh;display:grid;grid-template-columns:320px 1fr;overflow:hidden}.sidebar{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+    .side-head{padding:18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}.me{display:flex;gap:10px;align-items:center}.avatar{width:42px;height:42px;border-radius:50%;background:#dbeafe;color:#1d4ed8;display:grid;place-items:center;font-weight:800;flex:none}
+    .me small{display:block;color:var(--muted);margin-top:2px}.icon-btn{border:0;background:#f3f6fb;border-radius:10px;width:38px;height:38px}
+    .side-tabs{display:grid;grid-template-columns:repeat(3,1fr);padding:10px;gap:6px}.side-tabs button{border:0;background:transparent;padding:9px 5px;border-radius:9px;color:var(--muted);font-size:12px}.side-tabs button.active{background:#eff6ff;color:var(--primary);font-weight:700}
+    .panel{padding:0 12px 12px;overflow:auto}.search{margin:0 6px 10px}.list-item{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;margin:3px 0}.list-item:hover{background:#f6f8fb}.list-item.active{background:#eff6ff}.item-main{min-width:0;flex:1}.item-main strong,.item-main span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.item-main span{font-size:12px;color:var(--muted);margin-top:2px}
+    .badge{background:#2563eb;color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;display:grid;place-items:center;font-size:11px}.mini-actions{display:flex;gap:5px}.mini-actions button{border:0;border-radius:8px;padding:6px 8px;font-size:11px}.accept{background:#dcfce7;color:#166534}.reject{background:#fee2e2;color:#991b1b}
+    .chat{display:flex;flex-direction:column;min-width:0}.chat-head{height:72px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:12px}.chat-head .status{font-size:12px;color:var(--success)}
+    .messages{flex:1;overflow:auto;padding:22px;display:flex;flex-direction:column;gap:7px}.empty{margin:auto;text-align:center;color:var(--muted);max-width:360px}.bubble-row{display:flex}.bubble-row.mine{justify-content:flex-end}.bubble{max-width:min(72%,520px);padding:9px 12px;border-radius:16px;background:#fff;border:1px solid var(--line);line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}.mine .bubble{background:var(--primary);color:#fff;border-color:var(--primary);border-bottom-right-radius:5px}.bubble-row:not(.mine) .bubble{border-bottom-left-radius:5px}.time{font-size:10px;color:var(--muted);margin:2px 7px 8px}.mine + .time{text-align:right}
+    .composer{background:#fff;border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:8px}.composer input{flex:1}.send{width:48px;background:var(--primary);color:#fff;border:0;border-radius:11px}
+    .mobile-back{display:none}
+    .modal{position:fixed;inset:0;background:#0f172a66;display:grid;place-items:center;padding:20px;z-index:20}.modal-card{width:min(430px,100%);background:#fff;border-radius:18px;padding:22px}.modal-head{display:flex;justify-content:space-between;align-items:center}.modal-head button{border:0;background:#f3f6fb;border-radius:8px;width:34px;height:34px}
+    @media(max-width:800px){.app{grid-template-columns:1fr}.sidebar{display:flex}.chat{display:none}.app.chat-open .sidebar{display:none}.app.chat-open .chat{display:flex}.mobile-back{display:block;border:0;background:#f3f6fb;border-radius:9px;width:38px;height:38px}.chat-head{padding:0 12px}}
+  </style>
+</head>
+<body>
+<div id="authView" class="auth-wrap">
+  <div class="auth-card">
+    <div class="brand"><div class="logo">💬</div><h1>Chat Firebase</h1><p>Kết bạn và nhắn tin realtime</p></div>
+    <div class="tabs"><button id="loginTab" class="active">Đăng nhập</button><button id="registerTab">Đăng ký</button></div>
+    <form id="authForm">
+      <div id="nameWrap" class="hidden"><label>Tên hiển thị</label><input id="displayName" class="field" maxlength="40" placeholder="Nguyễn Văn A"></div>
+      <label>Email</label><input id="email" class="field" type="email" required placeholder="you@example.com">
+      <label>Mật khẩu</label><input id="password" class="field" type="password" minlength="6" required placeholder="Tối thiểu 6 ký tự">
+      <button class="btn btn-primary" id="authSubmit">Đăng nhập</button>
+      <div id="authMsg"></div>
+    </form>
+  </div>
+</div>
+
+<div id="appView" class="app hidden">
+  <aside class="sidebar">
+    <div class="side-head">
+      <div class="me"><div id="myAvatar" class="avatar">U</div><div><strong id="myName">User</strong><small id="myEmail"></small></div></div>
+      <button class="icon-btn" id="logoutBtn" title="Đăng xuất">↪</button>
+    </div>
+    <div class="side-tabs">
+      <button class="active" data-panel="friends">Bạn bè</button>
+      <button data-panel="requests">Lời mời <span id="requestBadge" class="badge hidden">0</span></button>
+      <button data-panel="find">Tìm bạn</button>
+    </div>
+    <div id="friendsPanel" class="panel"></div>
+    <div id="requestsPanel" class="panel hidden"></div>
+    <div id="findPanel" class="panel hidden">
+      <div class="search"><input id="userSearch" class="field" placeholder="Tìm theo tên hoặc username..."></div>
+      <div id="searchResults"></div>
+    </div>
+  </aside>
+
+  <main class="chat">
+    <div class="chat-head">
+      <button id="backBtn" class="mobile-back">‹</button>
+      <div id="chatAvatar" class="avatar">?</div>
+      <div><strong id="chatName">Chọn một người bạn</strong><div id="chatStatus" class="status"></div></div>
+    </div>
+    <div id="messages" class="messages">
+      <div class="empty"><h2>💬</h2><p>Chọn một người bạn để bắt đầu cuộc trò chuyện.</p></div>
+    </div>
+    <form id="composer" class="composer hidden">
+      <input id="messageInput" class="field" maxlength="2000" autocomplete="off" placeholder="Nhập tin nhắn...">
+      <button class="send" type="submit">➤</button>
+    </form>
+  </main>
+</div>
+
+<div id="profileModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-head"><h3>Hồ sơ</h3><button id="closeProfile">×</button></div>
+    <form id="profileForm">
+      <label>Tên hiển thị</label><input id="profileName" class="field" maxlength="40" required>
+      <label>Username</label><input id="profileUsername" class="field" maxlength="24" pattern="[a-zA-Z0-9_]+" required>
+      <button class="btn btn-primary">Lưu thay đổi</button>
+      <div id="profileMsg"></div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import { getDatabase, ref, set, get, update, push, onValue, off, query, orderByChild, startAt, endAt, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+
+/*
+ * BẮT BUỘC: vào Firebase Console > Project settings > Your apps > Web app
+ * và thay các giá trị TODO bằng Firebase Web App config của bạn.
+ * Database URL của bạn đã được điền sẵn.
+ */
+const firebaseConfig = {
+  apiKey: "TODO_YOUR_API_KEY",
+  authDomain: "messages-f01de.firebaseapp.com",
+  databaseURL: "https://messages-f01de-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: "messages-f01de",
+  storageBucket: "messages-f01de.firebasestorage.app",
+  messagingSenderId: "TODO_YOUR_SENDER_ID",
+  appId: "TODO_YOUR_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+const $ = id => document.getElementById(id);
+const state = { mode:"login", me:null, selected:null, selectedRoom:null, messageUnsub:null, friendsUnsub:null, requestsUnsub:null };
+
+function esc(s=""){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
+function initials(name="U"){return name.trim().split(/\s+/).slice(-2).map(x=>x[0]).join("").toUpperCase().slice(0,2)||"U";}
+function roomId(a,b){return [a,b].sort().join("_");}
+function fmtTime(ts){if(!ts)return "";const d=new Date(ts);return d.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"});}
+function showMsg(el,text,type="error"){el.innerHTML=`<div class="msg ${type}">${esc(text)}</div>`;}
+function clearMsg(el){el.innerHTML="";}
+
+function setMode(mode){
+  state.mode=mode;
+  $("loginTab").classList.toggle("active",mode==="login"); $("registerTab").classList.toggle("active",mode==="register");
+  $("nameWrap").classList.toggle("hidden",mode==="login"); $("authSubmit").textContent=mode==="login"?"Đăng nhập":"Tạo tài khoản";
+  clearMsg($("authMsg"));
+}
+$("loginTab").onclick=()=>setMode("login"); $("registerTab").onclick=()=>setMode("register");
+
+$("authForm").onsubmit=async e=>{
+  e.preventDefault(); clearMsg($("authMsg"));
+  try{
+    const email=$("email").value.trim(), password=$("password").value;
+    if(state.mode==="login") await signInWithEmailAndPassword(auth,email,password);
+    else{
+      const name=$("displayName").value.trim(); if(!name) throw new Error("Vui lòng nhập tên hiển thị.");
+      const cred=await createUserWithEmailAndPassword(auth,email,password);
+      await updateProfile(cred.user,{displayName:name});
+      const username=(name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"")||"user")+Math.floor(Math.random()*10000);
+      await set(ref(db,`users/${cred.user.uid}`),{uid:cred.user.uid,displayName:name,username,email,createdAt:serverTimestamp(),online:true});
+    }
+  }catch(err){showMsg($("authMsg"),firebaseError(err));}
+};
+
+function firebaseError(e){
+  const map={"auth/email-already-in-use":"Email đã được sử dụng.","auth/invalid-credential":"Email hoặc mật khẩu không đúng.","auth/invalid-email":"Email không hợp lệ.","auth/weak-password":"Mật khẩu chưa đủ mạnh.","auth/network-request-failed":"Không thể kết nối mạng."};
+  return map[e.code]||e.message||"Có lỗi xảy ra.";
+}
+
+onAuthStateChanged(auth, async user=>{
+  if(!user){$("authView").classList.remove("hidden");$("appView").classList.add("hidden");return;}
+  $("authView").classList.add("hidden");$("appView").classList.remove("hidden");
+  state.me=user;
+  const snap=await get(ref(db,`users/${user.uid}`));
+  if(!snap.exists()) await set(ref(db,`users/${user.uid}`),{uid:user.uid,displayName:user.displayName||"User",username:"user_"+user.uid.slice(0,6),email:user.email,createdAt:serverTimestamp(),online:true});
+  const meSnap=await get(ref(db,`users/${user.uid}`)); const me=meSnap.val();
+  $("myName").textContent=me.displayName||"User"; $("myEmail").textContent=me.email||user.email; $("myAvatar").textContent=initials(me.displayName);
+  await update(ref(db,`users/${user.uid}`),{online:true,lastSeen:serverTimestamp()});
+  loadFriends(); loadRequests();
+});
+
+$("logoutBtn").onclick=async()=>{if(state.me)await update(ref(db,`users/${state.me.uid}`),{online:false,lastSeen:serverTimestamp()});await signOut(auth);};
+$("backBtn").onclick=()=>{$("appView").classList.remove("chat-open");};
+
+document.querySelectorAll(".side-tabs button").forEach(btn=>btn.onclick=()=>{
+  document.querySelectorAll(".side-tabs button").forEach(x=>x.classList.remove("active"));btn.classList.add("active");
+  ["friends","requests","find"].forEach(x=>$(`${x}Panel`).classList.toggle("hidden",x!==btn.dataset.panel));
+});
+
+function loadFriends(){
+  if(state.friendsUnsub) off(ref(db,`friendships/${state.me.uid}`),state.friendsUnsub);
+  state.friendsUnsub=onValue(ref(db,`friendships/${state.me.uid}`),async snap=>{
+    const ids=Object.keys(snap.val()||{}); const box=$("friendsPanel");
+    if(!ids.length){box.innerHTML=`<div class="empty" style="margin:40px 10px"><p>Chưa có bạn bè.</p><small>Hãy vào “Tìm bạn” để kết bạn.</small></div>`;return;}
+    const users=await Promise.all(ids.map(async id=>{const s=await get(ref(db,`users/${id}`));return s.exists()?s.val():null;}));
+    box.innerHTML=users.filter(Boolean).map(u=>`<div class="list-item ${state.selected?.uid===u.uid?"active":""}" data-uid="${u.uid}"><div class="avatar">${initials(u.displayName)}</div><div class="item-main"><strong>${esc(u.displayName)}</strong><span>@${esc(u.username||"")}</span></div>${u.online?'<span class="status">●</span>':''}</div>`).join("");
+    box.querySelectorAll(".list-item").forEach(el=>el.onclick=()=>openChat(el.dataset.uid));
+  });
+}
+
+function loadRequests(){
+  if(state.requestsUnsub) off(ref(db,`friendRequests/${state.me.uid}`),state.requestsUnsub);
+  state.requestsUnsub=onValue(ref(db,`friendRequests/${state.me.uid}`),async snap=>{
+    const data=snap.val()||{}; const entries=Object.entries(data).filter(([,v])=>v.status==="pending");
+    $("requestBadge").textContent=entries.length;$("requestBadge").classList.toggle("hidden",!entries.length);
+    if(!entries.length){$("requestsPanel").innerHTML=`<div class="empty" style="margin:40px 10px"><p>Không có lời mời kết bạn.</p></div>`;return;}
+    const users=await Promise.all(entries.map(async ([uid,v])=>{const s=await get(ref(db,`users/${uid}`));return [uid,v,s.val()];}));
+    $("requestsPanel").innerHTML=users.map(([uid,v,u])=>`<div class="list-item"><div class="avatar">${initials(u?.displayName)}</div><div class="item-main"><strong>${esc(u?.displayName||"Người dùng")}</strong><span>muốn kết bạn</span></div><div class="mini-actions"><button class="accept" data-accept="${uid}">✓</button><button class="reject" data-reject="${uid}">×</button></div></div>`).join("");
+    $("requestsPanel").querySelectorAll("[data-accept]").forEach(b=>b.onclick=()=>respondRequest(b.dataset.accept,true));
+    $("requestsPanel").querySelectorAll("[data-reject]").forEach(b=>b.onclick=()=>respondRequest(b.dataset.reject,false));
+  });
+}
+
+async function respondRequest(uid,accept){
+  const updates={};
+  if(accept){updates[`friendships/${state.me.uid}/${uid}`]=true;updates[`friendships/${uid}/${state.me.uid}`]=true;}
+  updates[`friendRequests/${state.me.uid}/${uid}/status`]=accept?"accepted":"rejected";
+  await update(ref(db),updates); loadFriends();
+}
+
+let searchTimer;
+$("userSearch").oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(searchUsers,250);};
+async function searchUsers(){
+  const term=$("userSearch").value.trim().toLowerCase(); const box=$("searchResults");
+  if(term.length<2){box.innerHTML="";return;}
+  const snap=await get(ref(db,"users")); const all=snap.val()||{};
+  const result=Object.values(all).filter(u=>u.uid!==state.me.uid && ((u.displayName||"").toLowerCase().includes(term)||(u.username||"").toLowerCase().includes(term))).slice(0,30);
+  if(!result.length){box.innerHTML=`<div class="empty" style="margin:30px 10px"><p>Không tìm thấy người dùng.</p></div>`;return;}
+  const friends=await get(ref(db,`friendships/${state.me.uid}`)); const f=friends.val()||{};
+  const requests=await get(ref(db,`friendRequests/${state.me.uid}`)); const r=requests.val()||{};
+  box.innerHTML=result.map(u=>{
+    let action=f[u.uid]?`<span class="status">Bạn bè</span>`:r[u.uid]?.status==="pending"?`<span style="font-size:11px;color:var(--muted)">Đã gửi</span>`:`<button class="accept" style="border:0;padding:6px 9px;border-radius:8px" data-add="${u.uid}">+ Kết bạn</button>`;
+    return `<div class="list-item"><div class="avatar">${initials(u.displayName)}</div><div class="item-main"><strong>${esc(u.displayName)}</strong><span>@${esc(u.username||"")}</span></div>${action}</div>`;
+  }).join("");
+  box.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>sendRequest(b.dataset.add));
+}
+async function sendRequest(uid){
+  await set(ref(db,`friendRequests/${uid}/${state.me.uid}`),{from:state.me.uid,status:"pending",createdAt:serverTimestamp()});
+  searchUsers();
+}
+
+async function openChat(uid){
+  const s=await get(ref(db,`users/${uid}`)); if(!s.exists())return;
+  state.selected=s.val(); state.selectedRoom=roomId(state.me.uid,uid);
+  $("chatName").textContent=state.selected.displayName; $("chatStatus").textContent=state.selected.online?"● đang online":"";
+  $("chatAvatar").textContent=initials(state.selected.displayName);$("composer").classList.remove("hidden");$("messages").innerHTML="";
+  $("appView").classList.add("chat-open");
+  if(state.messageUnsub) off(ref(db,`chats/${state.selectedRoom}/messages`),state.messageUnsub);
+  const mref=ref(db,`chats/${state.selectedRoom}/messages`);
+  state.messageUnsub=onValue(mref,snap=>{
+    const messages=Object.values(snap.val()||{}).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+    $("messages").innerHTML=messages.length?messages.map(m=>`<div class="bubble-row ${m.senderId===state.me.uid?"mine":""}"><div class="bubble">${esc(m.text)}</div></div><div class="time ${m.senderId===state.me.uid?"mine":""}">${fmtTime(m.createdAt)}</div>`).join(""):`<div class="empty"><p>Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện!</p></div>`;
+    $("messages").scrollTop=$("messages").scrollHeight;
+  });
+}
+
+$("composer").onsubmit=async e=>{
+  e.preventDefault(); const text=$("messageInput").value.trim(); if(!text||!state.selected)return;
+  const base=`chats/${state.selectedRoom}`;
+  const updates={};
+  updates[`${base}/members/${state.me.uid}`]=true;updates[`${base}/members/${state.selected.uid}`]=true;
+  const key=push(ref(db,`${base}/messages`)).key;
+  updates[`${base}/messages/${key}`]={senderId:state.me.uid,text,createdAt:Date.now()};
+  updates[`userChats/${state.me.uid}/${state.selected.uid}`]={roomId:state.selectedRoom,lastMessage:text,lastMessageAt:Date.now()};
+  updates[`userChats/${state.selected.uid}/${state.me.uid}`]={roomId:state.selectedRoom,lastMessage:text,lastMessageAt:Date.now()};
+  await update(ref(db),updates);$("messageInput").value="";
+};
+
+// Hồ sơ: mở bằng double click vào khu vực tên của mình.
+$("myName").ondblclick=async()=>{
+  const s=await get(ref(db,`users/${state.me.uid}`));const u=s.val()||{};
+  $("profileName").value=u.displayName||"";$("profileUsername").value=u.username||"";$("profileModal").classList.remove("hidden");
+};
+$("closeProfile").onclick=()=>$("profileModal").classList.add("hidden");
+$("profileForm").onsubmit=async e=>{
+  e.preventDefault();clearMsg($("profileMsg"));
+  const name=$("profileName").value.trim(),username=$("profileUsername").value.trim();
+  try{await update(ref(db,`users/${state.me.uid}`),{displayName:name,username});await updateProfile(state.me,{displayName:name});showMsg($("profileMsg"),"Đã lưu.","ok");$("myName").textContent=name;$("myAvatar").textContent=initials(name);}
+  catch(err){showMsg($("profileMsg"),firebaseError(err));}
+};
+</script>
+</body>
+</html>
