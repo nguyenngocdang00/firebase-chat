@@ -27,6 +27,24 @@
     .messages{flex:1;overflow:auto;padding:22px;display:flex;flex-direction:column;gap:7px}.empty{margin:auto;text-align:center;color:var(--muted);max-width:360px}.bubble-row{display:flex}.bubble-row.mine{justify-content:flex-end}.bubble{max-width:min(72%,520px);padding:9px 12px;border-radius:16px;background:#fff;border:1px solid var(--line);line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}.mine .bubble{background:var(--primary);color:#fff;border-color:var(--primary);border-bottom-right-radius:5px}.bubble-row:not(.mine) .bubble{border-bottom-left-radius:5px}.time{font-size:10px;color:var(--muted);margin:2px 7px 8px}.mine + .time{text-align:right}
     .composer{background:#fff;border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:8px}.composer input{flex:1}.send{width:48px;background:var(--primary);color:#fff;border:0;border-radius:11px}
     .mobile-back{display:none}
+    .avatar{font-size:18px}
+    .link-btn{background:none;border:0;color:var(--primary);font-size:12px;font-weight:700;padding:0;cursor:pointer}
+    .hint-row{display:flex;justify-content:flex-end;margin-top:8px}
+    .avatar-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0 4px}
+    .avatar-grid button{border:2px solid transparent;background:#f3f6fb;border-radius:10px;font-size:19px;padding:6px 0}
+    .avatar-grid button.selected{border-color:var(--primary);background:#eff6ff}
+    .section-title{font-size:12px;font-weight:700;color:var(--muted);margin:18px 0 4px;text-transform:uppercase;letter-spacing:.03em}
+    .last-seen{font-size:11px;color:var(--muted);white-space:nowrap}
+    .online-dot{color:var(--success);font-size:11px;white-space:nowrap}
+    .tick{font-size:10px;margin-left:4px}
+    .tick.seen{color:#60a5fa}
+    .tick.sent{color:var(--muted)}
+    .bubble-wrap{position:relative;display:inline-block;max-width:100%}
+    .recall-btn{border:0;background:#0f172a;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;line-height:18px;position:absolute;top:-7px;right:-7px;display:none;padding:0}
+    .bubble-row.mine:hover .recall-btn{display:block}
+    .deleted-text{font-style:italic;color:var(--muted)}
+    .composer textarea.field{resize:none;max-height:110px;line-height:1.4}
+    .list-item .reject{flex:none}
     .modal{position:fixed;inset:0;background:#0f172a66;display:grid;place-items:center;padding:20px;z-index:20}.modal-card{width:min(430px,100%);background:#fff;border-radius:18px;padding:22px}.modal-head{display:flex;justify-content:space-between;align-items:center}.modal-head button{border:0;background:#f3f6fb;border-radius:8px;width:34px;height:34px}
     @media(max-width:800px){.app{grid-template-columns:1fr}.sidebar{display:flex}.chat{display:none}.app.chat-open .sidebar{display:none}.app.chat-open .chat{display:flex}.mobile-back{display:block;border:0;background:#f3f6fb;border-radius:9px;width:38px;height:38px}.chat-head{padding:0 12px}}
   </style>
@@ -40,6 +58,7 @@
       <div id="nameWrap" class="hidden"><label>Tên hiển thị</label><input id="displayName" class="field" maxlength="40" placeholder="Nguyễn Văn A"></div>
       <label>Email</label><input id="email" class="field" type="email" required placeholder="you@example.com">
       <label>Mật khẩu</label><input id="password" class="field" type="password" minlength="6" required placeholder="Tối thiểu 6 ký tự">
+      <div class="hint-row"><button type="button" id="forgotBtn" class="link-btn">Quên mật khẩu?</button></div>
       <button class="btn btn-primary" id="authSubmit">Đăng nhập</button>
       <div id="authMsg"></div>
     </form>
@@ -58,7 +77,12 @@
       <button data-panel="find">Tìm bạn</button>
     </div>
     <div id="friendsPanel" class="panel"></div>
-    <div id="requestsPanel" class="panel hidden"></div>
+    <div id="requestsPanel" class="panel hidden">
+      <div class="section-title">Lời mời đến</div>
+      <div id="incomingList"></div>
+      <div class="section-title">Đã gửi</div>
+      <div id="outgoingList"></div>
+    </div>
     <div id="findPanel" class="panel hidden">
       <div class="search"><input id="userSearch" class="field" placeholder="Tìm theo tên hoặc username..."></div>
       <div id="searchResults"></div>
@@ -75,18 +99,24 @@
       <div class="empty"><h2>💬</h2><p>Chọn một người bạn để bắt đầu cuộc trò chuyện.</p></div>
     </div>
     <form id="composer" class="composer hidden">
-      <input id="messageInput" class="field" maxlength="2000" autocomplete="off" placeholder="Nhập tin nhắn...">
+      <textarea id="messageInput" class="field" maxlength="2000" rows="1" placeholder="Nhập tin nhắn... (Shift+Enter để xuống dòng)"></textarea>
       <button class="send" type="submit">➤</button>
     </form>
   </main>
 </div>
 
 <div id="profileModal" class="modal hidden">
-  <div class="modal-card">
+  <div class="modal-card" style="max-height:88vh;overflow:auto">
     <div class="modal-head"><h3>Hồ sơ</h3><button id="closeProfile">×</button></div>
     <form id="profileForm">
+      <label>Ảnh đại diện</label>
+      <div id="avatarGrid" class="avatar-grid"></div>
       <label>Tên hiển thị</label><input id="profileName" class="field" maxlength="40" required>
       <label>Username</label><input id="profileUsername" class="field" maxlength="24" pattern="[a-zA-Z0-9_]+" required>
+      <label>Giới thiệu</label><input id="profileBio" class="field" maxlength="120" placeholder="Vài dòng về bạn...">
+      <div class="section-title">Đổi mật khẩu (không bắt buộc)</div>
+      <label>Mật khẩu hiện tại</label><input id="curPassword" class="field" type="password" autocomplete="current-password">
+      <label>Mật khẩu mới</label><input id="newPassword" class="field" type="password" minlength="6" autocomplete="new-password">
       <button class="btn btn-primary">Lưu thay đổi</button>
       <div id="profileMsg"></div>
     </form>
@@ -95,24 +125,14 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-import { getDatabase, ref, set, get, update, push, onValue, off, query, orderByChild, startAt, endAt, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import { getDatabase, ref, set, get, update, push, onValue, off, onDisconnect, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
 /*
  * BẮT BUỘC: vào Firebase Console > Project settings > Your apps > Web app
  * và thay các giá trị TODO bằng Firebase Web App config của bạn.
  * Database URL của bạn đã được điền sẵn.
  */
-/*const firebaseConfig = {
-  apiKey: "TODO_YOUR_API_KEY",
-  authDomain: "messages-f01de.firebaseapp.com",
-  databaseURL: "https://messages-f01de-default-rtdb.asia-southeast1.firebasedatabase.app/",
-  projectId: "messages-f01de",
-  storageBucket: "messages-f01de.firebasestorage.app",
-  messagingSenderId: "TODO_YOUR_SENDER_ID",
-  appId: "TODO_YOUR_APP_ID"
-};*/
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyCu8iMOK1e_LtN946q031xZUaXmpxaNw3g",
   authDomain: "messages-f01de.firebaseapp.com",
@@ -129,22 +149,37 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 const $ = id => document.getElementById(id);
-const state = { mode:"login", me:null, selected:null, selectedRoom:null, messageUnsub:null, friendsUnsub:null, requestsUnsub:null };
+const AVATAR_OPTIONS=["😀","😎","🤓","🥳","🐱","🐶","🦊","🐼","🦁","🐨","🌟","🔥","🍀","🎧","🚀","🎨","⚡","🌈","🍉","🍕","⚽","🎮","📚","🎵"];
+const state = { mode:"login", me:null, selected:null, selectedRoom:null, currentMessages:[], partnerSeenAt:0, messageUnsub:null, seenUnsub:null, friendsUnsub:null, requestsUnsub:null, sentUnsub:null };
 
 function esc(s=""){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
 function initials(name="U"){return name.trim().split(/\s+/).slice(-2).map(x=>x[0]).join("").toUpperCase().slice(0,2)||"U";}
+function avatarText(u){return u?.avatar || initials(u?.displayName);}
 function roomId(a,b){return [a,b].sort().join("_");}
 function fmtTime(ts){if(!ts)return "";const d=new Date(ts);return d.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"});}
+function timeAgo(ts){if(!ts)return "";const diff=Math.max(0,Date.now()-ts);const m=Math.floor(diff/60000);if(m<1)return "vừa xong";if(m<60)return m+" phút trước";const h=Math.floor(m/60);if(h<24)return h+" giờ trước";const d=Math.floor(h/24);return d+" ngày trước";}
 function showMsg(el,text,type="error"){el.innerHTML=`<div class="msg ${type}">${esc(text)}</div>`;}
 function clearMsg(el){el.innerHTML="";}
+function renderAvatarGrid(selected){
+  $("avatarGrid").innerHTML=AVATAR_OPTIONS.map(e=>`<button type="button" data-avatar="${e}" class="${e===selected?"selected":""}">${e}</button>`).join("");
+  $("avatarGrid").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("avatarGrid").querySelectorAll("button").forEach(x=>x.classList.remove("selected"));b.classList.add("selected");});
+}
+function selectedAvatar(){return $("avatarGrid").querySelector("button.selected")?.dataset.avatar || AVATAR_OPTIONS[0];}
 
 function setMode(mode){
   state.mode=mode;
   $("loginTab").classList.toggle("active",mode==="login"); $("registerTab").classList.toggle("active",mode==="register");
   $("nameWrap").classList.toggle("hidden",mode==="login"); $("authSubmit").textContent=mode==="login"?"Đăng nhập":"Tạo tài khoản";
+  $("forgotBtn").classList.toggle("hidden",mode!=="login");
   clearMsg($("authMsg"));
 }
 $("loginTab").onclick=()=>setMode("login"); $("registerTab").onclick=()=>setMode("register");
+$("forgotBtn").onclick=async()=>{
+  const email=$("email").value.trim() || prompt("Nhập email để đặt lại mật khẩu:");
+  if(!email) return;
+  try{ await sendPasswordResetEmail(auth,email); showMsg($("authMsg"),"Đã gửi email đặt lại mật khẩu, vui lòng kiểm tra hộp thư.","ok"); }
+  catch(err){ showMsg($("authMsg"),firebaseError(err)); }
+};
 
 $("authForm").onsubmit=async e=>{
   e.preventDefault(); clearMsg($("authMsg"));
@@ -155,14 +190,20 @@ $("authForm").onsubmit=async e=>{
       const name=$("displayName").value.trim(); if(!name) throw new Error("Vui lòng nhập tên hiển thị.");
       const cred=await createUserWithEmailAndPassword(auth,email,password);
       await updateProfile(cred.user,{displayName:name});
-      const username=(name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"")||"user")+Math.floor(Math.random()*10000);
-      await set(ref(db,`users/${cred.user.uid}`),{uid:cred.user.uid,displayName:name,username,email,createdAt:serverTimestamp(),online:true});
+      const base=(name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"")||"user");
+      let candidate=base+Math.floor(Math.random()*10000), claimed=false;
+      for(let i=0;i<5 && !claimed;i++){
+        const result=await runTransaction(ref(db,`usernames/${candidate}`), cur=> cur===null ? cred.user.uid : undefined);
+        if(result.committed) claimed=true; else candidate=base+Math.floor(Math.random()*100000);
+      }
+      const avatar=AVATAR_OPTIONS[Math.floor(Math.random()*AVATAR_OPTIONS.length)];
+      await set(ref(db,`users/${cred.user.uid}`),{uid:cred.user.uid,displayName:name,username:candidate,email,createdAt:serverTimestamp(),online:true,avatar,bio:""});
     }
   }catch(err){showMsg($("authMsg"),firebaseError(err));}
 };
 
 function firebaseError(e){
-  const map={"auth/email-already-in-use":"Email đã được sử dụng.","auth/invalid-credential":"Email hoặc mật khẩu không đúng.","auth/invalid-email":"Email không hợp lệ.","auth/weak-password":"Mật khẩu chưa đủ mạnh.","auth/network-request-failed":"Không thể kết nối mạng."};
+  const map={"auth/email-already-in-use":"Email đã được sử dụng.","auth/invalid-credential":"Email hoặc mật khẩu không đúng.","auth/wrong-password":"Mật khẩu hiện tại không đúng.","auth/invalid-email":"Email không hợp lệ.","auth/user-not-found":"Không tìm thấy tài khoản với email này.","auth/weak-password":"Mật khẩu chưa đủ mạnh (tối thiểu 6 ký tự).","auth/requires-recent-login":"Vui lòng đăng xuất rồi đăng nhập lại để đổi mật khẩu.","auth/network-request-failed":"Không thể kết nối mạng."};
   return map[e.code]||e.message||"Có lỗi xảy ra.";
 }
 
@@ -171,12 +212,28 @@ onAuthStateChanged(auth, async user=>{
   $("authView").classList.add("hidden");$("appView").classList.remove("hidden");
   state.me=user;
   const snap=await get(ref(db,`users/${user.uid}`));
-  if(!snap.exists()) await set(ref(db,`users/${user.uid}`),{uid:user.uid,displayName:user.displayName||"User",username:"user_"+user.uid.slice(0,6),email:user.email,createdAt:serverTimestamp(),online:true});
+  if(!snap.exists()){
+    const fallbackUsername="user_"+user.uid.slice(0,6);
+    await runTransaction(ref(db,`usernames/${fallbackUsername}`), cur=> cur===null ? user.uid : undefined);
+    await set(ref(db,`users/${user.uid}`),{uid:user.uid,displayName:user.displayName||"User",username:fallbackUsername,email:user.email,createdAt:serverTimestamp(),online:true,avatar:AVATAR_OPTIONS[0],bio:""});
+  }
   const meSnap=await get(ref(db,`users/${user.uid}`)); const me=meSnap.val();
-  $("myName").textContent=me.displayName||"User"; $("myEmail").textContent=me.email||user.email; $("myAvatar").textContent=initials(me.displayName);
+  $("myName").textContent=me.displayName||"User"; $("myEmail").textContent=me.email||user.email; $("myAvatar").textContent=avatarText(me);
   await update(ref(db,`users/${user.uid}`),{online:true,lastSeen:serverTimestamp()});
-  loadFriends(); loadRequests();
+  setupPresence(user.uid);
+  loadFriends(); loadRequests(); loadSentRequests();
 });
+
+function setupPresence(uid){
+  onValue(ref(db,".info/connected"), snap=>{
+    if(snap.val()===true){
+      const myRef=ref(db,`users/${uid}`);
+      onDisconnect(myRef).update({online:false,lastSeen:serverTimestamp()}).then(()=>{
+        update(myRef,{online:true,lastSeen:serverTimestamp()});
+      });
+    }
+  });
+}
 
 $("logoutBtn").onclick=async()=>{if(state.me)await update(ref(db,`users/${state.me.uid}`),{online:false,lastSeen:serverTimestamp()});await signOut(auth);};
 $("backBtn").onclick=()=>{$("appView").classList.remove("chat-open");};
@@ -192,9 +249,21 @@ function loadFriends(){
     const ids=Object.keys(snap.val()||{}); const box=$("friendsPanel");
     if(!ids.length){box.innerHTML=`<div class="empty" style="margin:40px 10px"><p>Chưa có bạn bè.</p><small>Hãy vào “Tìm bạn” để kết bạn.</small></div>`;return;}
     const users=await Promise.all(ids.map(async id=>{const s=await get(ref(db,`users/${id}`));return s.exists()?s.val():null;}));
-    box.innerHTML=users.filter(Boolean).map(u=>`<div class="list-item ${state.selected?.uid===u.uid?"active":""}" data-uid="${u.uid}"><div class="avatar">${initials(u.displayName)}</div><div class="item-main"><strong>${esc(u.displayName)}</strong><span>@${esc(u.username||"")}</span></div>${u.online?'<span class="status">●</span>':''}</div>`).join("");
-    box.querySelectorAll(".list-item").forEach(el=>el.onclick=()=>openChat(el.dataset.uid));
+    box.innerHTML=users.filter(Boolean).map(u=>{
+      const statusText=u.online?`<span class="online-dot">● Online</span>`:(u.lastSeen?`<span class="last-seen">${timeAgo(u.lastSeen)}</span>`:"");
+      return `<div class="list-item ${state.selected?.uid===u.uid?"active":""}" data-uid="${u.uid}"><div class="avatar">${avatarText(u)}</div><div class="item-main"><strong>${esc(u.displayName)}</strong><span>@${esc(u.username||"")}</span></div>${statusText}<button type="button" class="reject" data-remove="${u.uid}" title="Xóa bạn" style="margin-left:6px">✕</button></div>`;
+    }).join("");
+    box.querySelectorAll(".list-item").forEach(el=>el.addEventListener("click",e=>{if(e.target.closest("[data-remove]"))return;openChat(el.dataset.uid);}));
+    box.querySelectorAll("[data-remove]").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();removeFriend(b.dataset.remove);}));
   });
+}
+
+async function removeFriend(uid){
+  if(!confirm("Xóa người này khỏi danh sách bạn bè?"))return;
+  const updates={};
+  updates[`friendships/${state.me.uid}/${uid}`]=null;
+  updates[`friendships/${uid}/${state.me.uid}`]=null;
+  await update(ref(db),updates);
 }
 
 function loadRequests(){
@@ -202,18 +271,39 @@ function loadRequests(){
   state.requestsUnsub=onValue(ref(db,`friendRequests/${state.me.uid}`),async snap=>{
     const data=snap.val()||{}; const entries=Object.entries(data).filter(([,v])=>v.status==="pending");
     $("requestBadge").textContent=entries.length;$("requestBadge").classList.toggle("hidden",!entries.length);
-    if(!entries.length){$("requestsPanel").innerHTML=`<div class="empty" style="margin:40px 10px"><p>Không có lời mời kết bạn.</p></div>`;return;}
+    const box=$("incomingList");
+    if(!entries.length){box.innerHTML=`<div class="empty" style="margin:20px 10px"><p>Không có lời mời kết bạn.</p></div>`;return;}
     const users=await Promise.all(entries.map(async ([uid,v])=>{const s=await get(ref(db,`users/${uid}`));return [uid,v,s.val()];}));
-    $("requestsPanel").innerHTML=users.map(([uid,v,u])=>`<div class="list-item"><div class="avatar">${initials(u?.displayName)}</div><div class="item-main"><strong>${esc(u?.displayName||"Người dùng")}</strong><span>muốn kết bạn</span></div><div class="mini-actions"><button class="accept" data-accept="${uid}">✓</button><button class="reject" data-reject="${uid}">×</button></div></div>`).join("");
-    $("requestsPanel").querySelectorAll("[data-accept]").forEach(b=>b.onclick=()=>respondRequest(b.dataset.accept,true));
-    $("requestsPanel").querySelectorAll("[data-reject]").forEach(b=>b.onclick=()=>respondRequest(b.dataset.reject,false));
+    box.innerHTML=users.map(([uid,v,u])=>`<div class="list-item"><div class="avatar">${avatarText(u)}</div><div class="item-main"><strong>${esc(u?.displayName||"Người dùng")}</strong><span>muốn kết bạn</span></div><div class="mini-actions"><button class="accept" data-accept="${uid}">✓</button><button class="reject" data-reject="${uid}">×</button></div></div>`).join("");
+    box.querySelectorAll("[data-accept]").forEach(b=>b.onclick=()=>respondRequest(b.dataset.accept,true));
+    box.querySelectorAll("[data-reject]").forEach(b=>b.onclick=()=>respondRequest(b.dataset.reject,false));
   });
+}
+
+function loadSentRequests(){
+  if(state.sentUnsub) off(ref(db,`sentRequests/${state.me.uid}`),state.sentUnsub);
+  state.sentUnsub=onValue(ref(db,`sentRequests/${state.me.uid}`),async snap=>{
+    const data=snap.val()||{}; const entries=Object.entries(data).filter(([,v])=>v.status==="pending");
+    const box=$("outgoingList");
+    if(!entries.length){box.innerHTML=`<div class="empty" style="margin:20px 10px"><p>Không có lời mời nào đang chờ.</p></div>`;return;}
+    const users=await Promise.all(entries.map(async ([uid])=>{const s=await get(ref(db,`users/${uid}`));return [uid,s.val()];}));
+    box.innerHTML=users.map(([uid,u])=>`<div class="list-item"><div class="avatar">${avatarText(u)}</div><div class="item-main"><strong>${esc(u?.displayName||"Người dùng")}</strong><span>Đang chờ phản hồi</span></div><button type="button" class="reject" data-cancel="${uid}">Hủy</button></div>`).join("");
+    box.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>cancelRequest(b.dataset.cancel));
+  });
+}
+
+async function cancelRequest(uid){
+  const updates={};
+  updates[`friendRequests/${uid}/${state.me.uid}`]=null;
+  updates[`sentRequests/${state.me.uid}/${uid}`]=null;
+  await update(ref(db),updates);
 }
 
 async function respondRequest(uid,accept){
   const updates={};
   if(accept){updates[`friendships/${state.me.uid}/${uid}`]=true;updates[`friendships/${uid}/${state.me.uid}`]=true;}
   updates[`friendRequests/${state.me.uid}/${uid}/status`]=accept?"accepted":"rejected";
+  updates[`sentRequests/${uid}/${state.me.uid}/status`]=accept?"accepted":"rejected";
   await update(ref(db),updates); loadFriends();
 }
 
@@ -226,31 +316,74 @@ async function searchUsers(){
   const result=Object.values(all).filter(u=>u.uid!==state.me.uid && ((u.displayName||"").toLowerCase().includes(term)||(u.username||"").toLowerCase().includes(term))).slice(0,30);
   if(!result.length){box.innerHTML=`<div class="empty" style="margin:30px 10px"><p>Không tìm thấy người dùng.</p></div>`;return;}
   const friends=await get(ref(db,`friendships/${state.me.uid}`)); const f=friends.val()||{};
-  const requests=await get(ref(db,`friendRequests/${state.me.uid}`)); const r=requests.val()||{};
+  const sent=await get(ref(db,`sentRequests/${state.me.uid}`)); const sReq=sent.val()||{};
+  const incoming=await get(ref(db,`friendRequests/${state.me.uid}`)); const iReq=incoming.val()||{};
   box.innerHTML=result.map(u=>{
-    let action=f[u.uid]?`<span class="status">Bạn bè</span>`:r[u.uid]?.status==="pending"?`<span style="font-size:11px;color:var(--muted)">Đã gửi</span>`:`<button class="accept" style="border:0;padding:6px 9px;border-radius:8px" data-add="${u.uid}">+ Kết bạn</button>`;
-    return `<div class="list-item"><div class="avatar">${initials(u.displayName)}</div><div class="item-main"><strong>${esc(u.displayName)}</strong><span>@${esc(u.username||"")}</span></div>${action}</div>`;
+    let action;
+    if(f[u.uid]) action=`<span class="status">Bạn bè</span>`;
+    else if(sReq[u.uid]?.status==="pending") action=`<span style="font-size:11px;color:var(--muted)">Đã gửi</span>`;
+    else if(iReq[u.uid]?.status==="pending") action=`<span style="font-size:11px;color:var(--primary)">Đã gửi cho bạn</span>`;
+    else action=`<button class="accept" style="border:0;padding:6px 9px;border-radius:8px" data-add="${u.uid}">+ Kết bạn</button>`;
+    return `<div class="list-item"><div class="avatar">${avatarText(u)}</div><div class="item-main"><strong>${esc(u.displayName)}</strong><span>@${esc(u.username||"")}</span></div>${action}</div>`;
   }).join("");
   box.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>sendRequest(b.dataset.add));
 }
 async function sendRequest(uid){
-  await set(ref(db,`friendRequests/${uid}/${state.me.uid}`),{from:state.me.uid,status:"pending",createdAt:serverTimestamp()});
+  const updates={};
+  updates[`friendRequests/${uid}/${state.me.uid}`]={from:state.me.uid,status:"pending",createdAt:serverTimestamp()};
+  updates[`sentRequests/${state.me.uid}/${uid}`]={to:uid,status:"pending",createdAt:serverTimestamp()};
+  await update(ref(db),updates);
   searchUsers();
 }
 
 async function openChat(uid){
   const s=await get(ref(db,`users/${uid}`)); if(!s.exists())return;
-  state.selected=s.val(); state.selectedRoom=roomId(state.me.uid,uid);
-  $("chatName").textContent=state.selected.displayName; $("chatStatus").textContent=state.selected.online?"● đang online":"";
-  $("chatAvatar").textContent=initials(state.selected.displayName);$("composer").classList.remove("hidden");$("messages").innerHTML="";
+  state.selected=s.val(); state.selectedRoom=roomId(state.me.uid,uid); state.partnerSeenAt=0;
+  $("chatName").textContent=state.selected.displayName; $("chatName").title=state.selected.bio||"";
+  $("chatStatus").textContent=state.selected.online?"● đang online":(state.selected.lastSeen?"Hoạt động "+timeAgo(state.selected.lastSeen):"");
+  $("chatAvatar").textContent=avatarText(state.selected);$("composer").classList.remove("hidden");$("messages").innerHTML="";
   $("appView").classList.add("chat-open");
+
   if(state.messageUnsub) off(ref(db,`chats/${state.selectedRoom}/messages`),state.messageUnsub);
+  if(state.seenUnsub) off(ref(db,`chats/${state.selectedRoom}/seenAt/${uid}`),state.seenUnsub);
+
   const mref=ref(db,`chats/${state.selectedRoom}/messages`);
   state.messageUnsub=onValue(mref,snap=>{
-    const messages=Object.values(snap.val()||{}).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
-    $("messages").innerHTML=messages.length?messages.map(m=>`<div class="bubble-row ${m.senderId===state.me.uid?"mine":""}"><div class="bubble">${esc(m.text)}</div></div><div class="time ${m.senderId===state.me.uid?"mine":""}">${fmtTime(m.createdAt)}</div>`).join(""):`<div class="empty"><p>Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện!</p></div>`;
-    $("messages").scrollTop=$("messages").scrollHeight;
+    const data=snap.val()||{};
+    state.currentMessages=Object.entries(data).map(([id,v])=>({id,...v})).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+    renderMessages(); markSeen();
   });
+
+  state.seenUnsub=onValue(ref(db,`chats/${state.selectedRoom}/seenAt/${uid}`),snap=>{
+    state.partnerSeenAt=snap.val()||0; renderMessages();
+  });
+}
+
+function markSeen(){
+  if(!state.selectedRoom) return;
+  update(ref(db,`chats/${state.selectedRoom}/seenAt`),{[state.me.uid]:Date.now()});
+}
+
+function renderMessages(){
+  const list=state.currentMessages||[];
+  $("messages").innerHTML=list.length?list.map(m=>{
+    const mine=m.senderId===state.me.uid;
+    const body=m.deleted?`<span class="deleted-text">Tin nhắn đã được thu hồi</span>`:esc(m.text);
+    const recall=(mine&&!m.deleted)?`<button type="button" class="recall-btn" data-recall="${m.id}" title="Thu hồi">×</button>`:"";
+    let tick="";
+    if(mine&&!m.deleted){
+      const seen=state.partnerSeenAt && m.createdAt<=state.partnerSeenAt;
+      tick=`<span class="tick ${seen?"seen":"sent"}">${seen?"✓✓ Đã xem":"✓ Đã gửi"}</span>`;
+    }
+    return `<div class="bubble-row ${mine?"mine":""}"><div class="bubble-wrap"><div class="bubble">${body}</div>${recall}</div></div><div class="time ${mine?"mine":""}">${fmtTime(m.createdAt)}${tick}</div>`;
+  }).join(""):`<div class="empty"><p>Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện!</p></div>`;
+  $("messages").scrollTop=$("messages").scrollHeight;
+  $("messages").querySelectorAll("[data-recall]").forEach(b=>b.onclick=()=>recallMessage(b.dataset.recall));
+}
+
+async function recallMessage(id){
+  if(!confirm("Thu hồi tin nhắn này?"))return;
+  await update(ref(db,`chats/${state.selectedRoom}/messages/${id}`),{deleted:true,text:""});
 }
 
 $("composer").onsubmit=async e=>{
@@ -262,20 +395,47 @@ $("composer").onsubmit=async e=>{
   updates[`${base}/messages/${key}`]={senderId:state.me.uid,text,createdAt:Date.now()};
   updates[`userChats/${state.me.uid}/${state.selected.uid}`]={roomId:state.selectedRoom,lastMessage:text,lastMessageAt:Date.now()};
   updates[`userChats/${state.selected.uid}/${state.me.uid}`]={roomId:state.selectedRoom,lastMessage:text,lastMessageAt:Date.now()};
-  await update(ref(db),updates);$("messageInput").value="";
+  await update(ref(db),updates);$("messageInput").value="";$("messageInput").style.height="auto";
 };
+$("messageInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); $("composer").requestSubmit(); }
+});
+$("messageInput").addEventListener("input",()=>{ $("messageInput").style.height="auto"; $("messageInput").style.height=Math.min($("messageInput").scrollHeight,110)+"px"; });
 
 // Hồ sơ: mở bằng double click vào khu vực tên của mình.
 $("myName").ondblclick=async()=>{
   const s=await get(ref(db,`users/${state.me.uid}`));const u=s.val()||{};
-  $("profileName").value=u.displayName||"";$("profileUsername").value=u.username||"";$("profileModal").classList.remove("hidden");
+  $("profileName").value=u.displayName||"";$("profileUsername").value=u.username||"";$("profileBio").value=u.bio||"";
+  renderAvatarGrid(u.avatar||AVATAR_OPTIONS[0]);
+  $("curPassword").value="";$("newPassword").value="";
+  $("profileModal").classList.remove("hidden");
 };
 $("closeProfile").onclick=()=>$("profileModal").classList.add("hidden");
 $("profileForm").onsubmit=async e=>{
   e.preventDefault();clearMsg($("profileMsg"));
-  const name=$("profileName").value.trim(),username=$("profileUsername").value.trim();
-  try{await update(ref(db,`users/${state.me.uid}`),{displayName:name,username});await updateProfile(state.me,{displayName:name});showMsg($("profileMsg"),"Đã lưu.","ok");$("myName").textContent=name;$("myAvatar").textContent=initials(name);}
-  catch(err){showMsg($("profileMsg"),firebaseError(err));}
+  const name=$("profileName").value.trim();
+  const username=$("profileUsername").value.trim().toLowerCase();
+  const bio=$("profileBio").value.trim();
+  const avatar=selectedAvatar();
+  const curPass=$("curPassword").value, newPass=$("newPassword").value;
+  try{
+    const oldSnap=await get(ref(db,`users/${state.me.uid}/username`)); const oldUsername=oldSnap.val();
+    if(username!==oldUsername){
+      const result=await runTransaction(ref(db,`usernames/${username}`), cur=> cur===null ? state.me.uid : undefined);
+      if(!result.committed) throw new Error("Username đã có người dùng, vui lòng chọn tên khác.");
+      if(oldUsername) await set(ref(db,`usernames/${oldUsername}`),null);
+    }
+    await update(ref(db,`users/${state.me.uid}`),{displayName:name,username,bio,avatar});
+    await updateProfile(state.me,{displayName:name});
+    if(curPass && newPass){
+      const cred=EmailAuthProvider.credential(state.me.email,curPass);
+      await reauthenticateWithCredential(state.me,cred);
+      await updatePassword(state.me,newPass);
+    }
+    showMsg($("profileMsg"),"Đã lưu.","ok");
+    $("myName").textContent=name;$("myAvatar").textContent=avatar;
+  }
+  catch(err){showMsg($("profileMsg"),firebaseError(err)||err.message);}
 };
 </script>
 </body>
