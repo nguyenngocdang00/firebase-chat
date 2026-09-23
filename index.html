@@ -38,12 +38,22 @@
     .online-dot{color:var(--success);font-size:11px;white-space:nowrap}
     .tick{font-size:10px;margin-left:4px}
     .tick.seen{color:#60a5fa}
+    .tick.delivered{color:var(--muted)}
     .tick.sent{color:var(--muted)}
     .bubble-wrap{position:relative;display:inline-block;max-width:100%}
-    .recall-btn{border:0;background:#0f172a;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;line-height:18px;position:absolute;top:-7px;right:-7px;display:none;padding:0}
-    .bubble-row.mine:hover .recall-btn{display:block}
+    .msg-actions{position:absolute;top:-9px;right:-7px;display:none;gap:3px}
+    .bubble-row:hover .msg-actions{display:flex}
+    .msg-actions button{border:0;background:#0f172a;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;line-height:18px;padding:0}
     .deleted-text{font-style:italic;color:var(--muted)}
+    .composer{position:relative}
     .composer textarea.field{resize:none;max-height:110px;line-height:1.4}
+    .emoji-btn{width:40px;background:#f3f6fb;border:0;border-radius:11px;font-size:18px;flex:none}
+    .emoji-popup{position:absolute;bottom:64px;left:16px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 12px 30px #17203324;display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
+    .emoji-popup button{border:0;background:transparent;font-size:19px;border-radius:8px;padding:5px}
+    .emoji-popup button:hover{background:#f3f6fb}
+    .toast-wrap{position:fixed;top:18px;right:18px;z-index:40;display:flex;flex-direction:column;gap:8px}
+    .toast{background:#172033;color:#fff;padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 12px 30px #17203340;max-width:280px;animation:toastIn .2s ease-out}
+    @keyframes toastIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
     .list-item .reject{flex:none}
     .modal{position:fixed;inset:0;background:#0f172a66;display:grid;place-items:center;padding:20px;z-index:20}.modal-card{width:min(430px,100%);background:#fff;border-radius:18px;padding:22px}.modal-head{display:flex;justify-content:space-between;align-items:center}.modal-head button{border:0;background:#f3f6fb;border-radius:8px;width:34px;height:34px}
     @media(max-width:800px){.app{grid-template-columns:1fr}.sidebar{display:flex}.chat{display:none}.app.chat-open .sidebar{display:none}.app.chat-open .chat{display:flex}.mobile-back{display:block;border:0;background:#f3f6fb;border-radius:9px;width:38px;height:38px}.chat-head{padding:0 12px}}
@@ -99,6 +109,8 @@
       <div class="empty"><h2>💬</h2><p>Chọn một người bạn để bắt đầu cuộc trò chuyện.</p></div>
     </div>
     <form id="composer" class="composer hidden">
+      <button type="button" id="emojiBtn" class="emoji-btn" title="Emoji">😊</button>
+      <div id="emojiPopup" class="emoji-popup hidden"></div>
       <textarea id="messageInput" class="field" maxlength="2000" rows="1" placeholder="Nhập tin nhắn... (Shift+Enter để xuống dòng)"></textarea>
       <button class="send" type="submit">➤</button>
     </form>
@@ -123,6 +135,8 @@
   </div>
 </div>
 
+<div id="toastWrap" class="toast-wrap"></div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
@@ -134,14 +148,13 @@ import { getDatabase, ref, set, get, update, push, onValue, off, onDisconnect, r
  * Database URL của bạn đã được điền sẵn.
  */
 const firebaseConfig = {
-  apiKey: "AIzaSyCu8iMOK1e_LtN946q031xZUaXmpxaNw3g",
+  apiKey: "TODO_YOUR_API_KEY",
   authDomain: "messages-f01de.firebaseapp.com",
-  databaseURL: "https://messages-f01de-default-rtdb.asia-southeast1.firebasedatabase.app",
+  databaseURL: "https://messages-f01de-default-rtdb.asia-southeast1.firebasedatabase.app/",
   projectId: "messages-f01de",
   storageBucket: "messages-f01de.firebasestorage.app",
-  messagingSenderId: "615968877992",
-  appId: "1:615968877992:web:b48d7af77096a915a9c19d",
-  measurementId: "G-R6J3M9V2VF"
+  messagingSenderId: "TODO_YOUR_SENDER_ID",
+  appId: "TODO_YOUR_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -150,7 +163,14 @@ const db = getDatabase(app);
 
 const $ = id => document.getElementById(id);
 const AVATAR_OPTIONS=["😀","😎","🤓","🥳","🐱","🐶","🦊","🐼","🦁","🐨","🌟","🔥","🍀","🎧","🚀","🎨","⚡","🌈","🍉","🍕","⚽","🎮","📚","🎵"];
-const state = { mode:"login", me:null, selected:null, selectedRoom:null, currentMessages:[], partnerSeenAt:0, messageUnsub:null, seenUnsub:null, friendsUnsub:null, requestsUnsub:null, sentUnsub:null };
+const EMOJI_QUICK=["😀","😂","🤣","😊","😍","🥰","😎","😭","😡","👍","❤️","🎉","🙏","😅","😉","🔥","👏","🤔"];
+const state = { mode:"login", me:null, selected:null, selectedRoom:null, currentMessages:[], partnerSeenAt:0, partnerOnline:false, myHidden:{}, prevIncomingCount:null, messageUnsub:null, seenUnsub:null, partnerUnsub:null, hiddenUnsub:null, friendsUnsub:null, requestsUnsub:null, sentUnsub:null };
+
+function showToast(text){
+  const t=document.createElement("div"); t.className="toast"; t.textContent=text;
+  $("toastWrap").appendChild(t);
+  setTimeout(()=>t.remove(),4500);
+}
 
 function esc(s=""){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
 function initials(name="U"){return name.trim().split(/\s+/).slice(-2).map(x=>x[0]).join("").toUpperCase().slice(0,2)||"U";}
@@ -238,6 +258,22 @@ function setupPresence(uid){
 $("logoutBtn").onclick=async()=>{if(state.me)await update(ref(db,`users/${state.me.uid}`),{online:false,lastSeen:serverTimestamp()});await signOut(auth);};
 $("backBtn").onclick=()=>{$("appView").classList.remove("chat-open");};
 
+$("emojiBtn").onclick=()=>{
+  if($("emojiPopup").classList.contains("hidden")){
+    $("emojiPopup").innerHTML=EMOJI_QUICK.map(e=>`<button type="button" data-e="${e}">${e}</button>`).join("");
+    $("emojiPopup").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+      const el=$("messageInput"); const start=el.selectionStart||el.value.length, end=el.selectionEnd||el.value.length;
+      el.value=el.value.slice(0,start)+b.dataset.e+el.value.slice(end);
+      el.focus(); el.selectionStart=el.selectionEnd=start+b.dataset.e.length;
+      el.dispatchEvent(new Event("input"));
+    });
+  }
+  $("emojiPopup").classList.toggle("hidden");
+};
+document.addEventListener("click",e=>{
+  if(!e.target.closest("#emojiPopup") && e.target!==$("emojiBtn")) $("emojiPopup").classList.add("hidden");
+});
+
 document.querySelectorAll(".side-tabs button").forEach(btn=>btn.onclick=()=>{
   document.querySelectorAll(".side-tabs button").forEach(x=>x.classList.remove("active"));btn.classList.add("active");
   ["friends","requests","find"].forEach(x=>$(`${x}Panel`).classList.toggle("hidden",x!==btn.dataset.panel));
@@ -272,8 +308,14 @@ function loadRequests(){
     const data=snap.val()||{}; const entries=Object.entries(data).filter(([,v])=>v.status==="pending");
     $("requestBadge").textContent=entries.length;$("requestBadge").classList.toggle("hidden",!entries.length);
     const box=$("incomingList");
-    if(!entries.length){box.innerHTML=`<div class="empty" style="margin:20px 10px"><p>Không có lời mời kết bạn.</p></div>`;return;}
+    if(!entries.length){box.innerHTML=`<div class="empty" style="margin:20px 10px"><p>Không có lời mời kết bạn.</p></div>`;state.prevIncomingCount=0;return;}
     const users=await Promise.all(entries.map(async ([uid,v])=>{const s=await get(ref(db,`users/${uid}`));return [uid,v,s.val()];}));
+    if(state.prevIncomingCount!==null && entries.length>state.prevIncomingCount){
+      const sorted=[...users].sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+      const newest=sorted[0]?.[2]?.displayName||"Người dùng";
+      showToast(`🔔 ${esc(newest)} đã gửi cho bạn một lời mời kết bạn`);
+    }
+    state.prevIncomingCount=entries.length;
     box.innerHTML=users.map(([uid,v,u])=>`<div class="list-item"><div class="avatar">${avatarText(u)}</div><div class="item-main"><strong>${esc(u?.displayName||"Người dùng")}</strong><span>muốn kết bạn</span></div><div class="mini-actions"><button class="accept" data-accept="${uid}">✓</button><button class="reject" data-reject="${uid}">×</button></div></div>`).join("");
     box.querySelectorAll("[data-accept]").forEach(b=>b.onclick=()=>respondRequest(b.dataset.accept,true));
     box.querySelectorAll("[data-reject]").forEach(b=>b.onclick=()=>respondRequest(b.dataset.reject,false));
@@ -338,7 +380,7 @@ async function sendRequest(uid){
 
 async function openChat(uid){
   const s=await get(ref(db,`users/${uid}`)); if(!s.exists())return;
-  state.selected=s.val(); state.selectedRoom=roomId(state.me.uid,uid); state.partnerSeenAt=0;
+  state.selected=s.val(); state.selectedRoom=roomId(state.me.uid,uid); state.partnerSeenAt=0; state.partnerOnline=!!state.selected.online; state.myHidden={};
   $("chatName").textContent=state.selected.displayName; $("chatName").title=state.selected.bio||"";
   $("chatStatus").textContent=state.selected.online?"● đang online":(state.selected.lastSeen?"Hoạt động "+timeAgo(state.selected.lastSeen):"");
   $("chatAvatar").textContent=avatarText(state.selected);$("composer").classList.remove("hidden");$("messages").innerHTML="";
@@ -346,6 +388,8 @@ async function openChat(uid){
 
   if(state.messageUnsub) off(ref(db,`chats/${state.selectedRoom}/messages`),state.messageUnsub);
   if(state.seenUnsub) off(ref(db,`chats/${state.selectedRoom}/seenAt/${uid}`),state.seenUnsub);
+  if(state.partnerUnsub) off(ref(db,`users/${uid}`),state.partnerUnsub);
+  if(state.hiddenUnsub) off(ref(db,`chats/${state.selectedRoom}/hiddenFor/${state.me.uid}`),state.hiddenUnsub);
 
   const mref=ref(db,`chats/${state.selectedRoom}/messages`);
   state.messageUnsub=onValue(mref,snap=>{
@@ -357,6 +401,17 @@ async function openChat(uid){
   state.seenUnsub=onValue(ref(db,`chats/${state.selectedRoom}/seenAt/${uid}`),snap=>{
     state.partnerSeenAt=snap.val()||0; renderMessages();
   });
+
+  state.partnerUnsub=onValue(ref(db,`users/${uid}`),snap=>{
+    const u=snap.val(); if(!u)return;
+    state.partnerOnline=!!u.online;
+    $("chatStatus").textContent=u.online?"● đang online":(u.lastSeen?"Hoạt động "+timeAgo(u.lastSeen):"");
+    renderMessages();
+  });
+
+  state.hiddenUnsub=onValue(ref(db,`chats/${state.selectedRoom}/hiddenFor/${state.me.uid}`),snap=>{
+    state.myHidden=snap.val()||{}; renderMessages();
+  });
 }
 
 function markSeen(){
@@ -365,25 +420,34 @@ function markSeen(){
 }
 
 function renderMessages(){
-  const list=state.currentMessages||[];
+  const list=(state.currentMessages||[]).filter(m=>!state.myHidden[m.id]);
   $("messages").innerHTML=list.length?list.map(m=>{
     const mine=m.senderId===state.me.uid;
     const body=m.deleted?`<span class="deleted-text">Tin nhắn đã được thu hồi</span>`:esc(m.text);
-    const recall=(mine&&!m.deleted)?`<button type="button" class="recall-btn" data-recall="${m.id}" title="Thu hồi">×</button>`:"";
+    const recallBtn=(mine&&!m.deleted)?`<button type="button" data-recall="${m.id}" title="Thu hồi (2 phía)">↩</button>`:"";
+    const deleteBtn=`<button type="button" data-delete="${m.id}" title="Xóa ở phía bạn">🗑</button>`;
     let tick="";
     if(mine&&!m.deleted){
       const seen=state.partnerSeenAt && m.createdAt<=state.partnerSeenAt;
-      tick=`<span class="tick ${seen?"seen":"sent"}">${seen?"✓✓ Đã xem":"✓ Đã gửi"}</span>`;
+      if(seen) tick=`<span class="tick seen">✓✓ Đã xem</span>`;
+      else if(state.partnerOnline) tick=`<span class="tick delivered">✓✓ Đã nhận</span>`;
+      else tick=`<span class="tick sent">✓ Đã gửi</span>`;
     }
-    return `<div class="bubble-row ${mine?"mine":""}"><div class="bubble-wrap"><div class="bubble">${body}</div>${recall}</div></div><div class="time ${mine?"mine":""}">${fmtTime(m.createdAt)}${tick}</div>`;
+    return `<div class="bubble-row ${mine?"mine":""}"><div class="bubble-wrap"><div class="bubble">${body}</div><div class="msg-actions">${recallBtn}${deleteBtn}</div></div></div><div class="time ${mine?"mine":""}">${fmtTime(m.createdAt)}${tick}</div>`;
   }).join(""):`<div class="empty"><p>Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện!</p></div>`;
   $("messages").scrollTop=$("messages").scrollHeight;
   $("messages").querySelectorAll("[data-recall]").forEach(b=>b.onclick=()=>recallMessage(b.dataset.recall));
+  $("messages").querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>deleteForMe(b.dataset.delete));
 }
 
 async function recallMessage(id){
-  if(!confirm("Thu hồi tin nhắn này?"))return;
+  if(!confirm("Thu hồi tin nhắn này? Cả hai phía sẽ không còn thấy nội dung."))return;
   await update(ref(db,`chats/${state.selectedRoom}/messages/${id}`),{deleted:true,text:""});
+}
+
+async function deleteForMe(id){
+  if(!confirm("Xóa tin nhắn này khỏi màn hình của bạn? (đối phương vẫn thấy bình thường)"))return;
+  await update(ref(db,`chats/${state.selectedRoom}/hiddenFor`),{[`${state.me.uid}/${id}`]:true});
 }
 
 $("composer").onsubmit=async e=>{
